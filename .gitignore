@@ -35,6 +35,9 @@ dist/
 data/uploads/*
 data/processed/*
 data/vector_stores/*
+!data/uploads/.gitkeep
+!data/processed/.gitkeep
+!data/vector_stores/.gitkeep
 
 # Logs
 *.log

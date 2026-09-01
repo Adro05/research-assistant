@@ -1,0 +1,1 @@
+"""Core application utilities (configuration, shared settings)."""

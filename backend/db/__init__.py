@@ -1,0 +1,1 @@
+"""Database layer: SQLAlchemy engine, session management, and declarative base."""

@@ -1,0 +1,1 @@
+"""Research Assistant — Streamlit frontend package."""

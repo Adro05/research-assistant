@@ -1,0 +1,1 @@
+"""Research Assistant — FastAPI backend package."""
