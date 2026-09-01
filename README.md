@@ -1,8 +1,30 @@
-# Research Assistant
+# 🔬 Research Assistant
 
-An AI-powered research assistant for discovering, organizing, and analyzing academic literature.
+**An AI-powered research assistant for discovering, organizing, and analyzing academic literature.**
 
-## Vision
+![Python](https://img.shields.io/badge/Python-3.12-blue)
+![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688)
+![Streamlit](https://img.shields.io/badge/Frontend-Streamlit-FF4B4B)
+![Status](https://img.shields.io/badge/Status-Active%20Development-yellow)
+
+---
+
+## 📖 Table of Contents
+
+- [Vision](#-vision)
+- [Core Design Principle](#-core-design-principle)
+- [Project-Based Research](#-project-based-research)
+- [Core RAG Pipeline](#-core-rag-pipeline)
+- [Long-Term Retrieval Architecture](#-long-term-retrieval-architecture)
+- [Evidence Verification](#-evidence-verification)
+- [Planned Architecture](#-planned-architecture)
+- [Scalability](#-scalability)
+- [Development Philosophy](#-development-philosophy)
+- [Status](#-status)
+
+---
+
+## 🎯 Vision
 
 The Research Assistant is designed to help researchers move from paper discovery to evidence-grounded literature analysis in a single platform.
 
@@ -18,58 +40,32 @@ The system will combine:
 - Evidence verification
 - Citation-aware responses
 
-## Core Design Principle
+---
 
-The academic paper discovery layer is optional.
+## 🧭 Core Design Principle
 
-The core document ingestion and RAG pipeline must continue to function even when external search providers or APIs are unavailable.
+> The academic paper discovery layer is **optional**. The core document ingestion and RAG pipeline must continue to function even when external search providers or APIs are unavailable.
 
-Users can therefore build a research corpus through:
+Users can build a research corpus through:
 
 1. Academic search
 2. Accessible paper URLs
 3. Direct PDF uploads
 
-If a paper is behind authentication, a subscription, or an institutional paywall, the system will not attempt to bypass the restriction. The user can access the paper through the official source and upload the PDF manually.
+> **Note:** If a paper is behind authentication, a subscription, or an institutional paywall, the system will **not** attempt to bypass the restriction. The user can access the paper through the official source and upload the PDF manually instead.
 
-## Project-Based Research
+---
+
+## 🗂️ Project-Based Research
 
 Users can create independent research projects.
 
-Each project maintains its own research context and retrieval scope.
+- Each project maintains its own research context and retrieval scope.
+- The same paper or document may be associated with multiple projects without requiring unnecessary duplication of the underlying document.
 
-The same paper or document may be associated with multiple projects without requiring unnecessary duplication of the underlying document.
+---
 
-## Planned Architecture
-
-The system will progressively evolve from a core RAG application into a multimodal, graph-enhanced, and agentic research intelligence platform.
-
-### Initial Technology Stack
-
-- Python 3.12
-- FastAPI
-- Streamlit
-- PostgreSQL
-- Hugging Face
-- Sentence Transformers
-- FAISS
-
-### Planned Extensions
-
-- Semantic Scholar
-- arXiv
-- Hybrid retrieval
-- Cross-encoder reranking
-- Multimodal RAG
-- Neo4j knowledge graph
-- Agentic evidence verification
-- Redis caching
-- Asynchronous document processing
-- Background workers
-- Observability
-- Horizontal scaling
-
-## Core RAG Pipeline
+## 🔄 Core RAG Pipeline
 
 The initial RAG pipeline will follow:
 
@@ -93,15 +89,11 @@ Hugging Face Generation
 Evidence-Grounded Answer
   ↓
 Citation Mapping
+```
 
-## Project-Based Research
+---
 
-Users can create independent research projects.
-
-Each project maintains its own research context and retrieval scope.
-
-The same paper or document may be associated with multiple projects without requiring unnecessary duplication of the underlying document.
-## Long-Term Retrieval Architecture
+## 🌐 Long-Term Retrieval Architecture
 
 The target retrieval system will combine:
 
@@ -111,8 +103,11 @@ The target retrieval system will combine:
 - Hybrid result fusion
 - Cross-encoder reranking
 
-This architecture will be introduced incrementally and evaluated at each stage.
-## Evidence Verification
+> This architecture will be introduced incrementally and evaluated at each stage.
+
+---
+
+## ✅ Evidence Verification
 
 The long-term system will use specialized agents to improve research reliability.
 
@@ -136,11 +131,46 @@ Verification Agent
 Evidence Judge
     ↓
 Final Answer
+```
 
-### 4. Then scalability
+---
 
-```markdown
-## Scalability
+## 🏗️ Planned Architecture
+
+The system will progressively evolve from a core RAG application into a multimodal, graph-enhanced, and agentic research intelligence platform.
+
+### Initial Technology Stack
+
+| Technology |
+|---|
+| Python 3.12 |
+| FastAPI |
+| Streamlit |
+| PostgreSQL |
+| Hugging Face |
+| Sentence Transformers |
+| FAISS |
+
+### Planned Extensions
+
+| Extension |
+|---|
+| Semantic Scholar |
+| arXiv |
+| Hybrid retrieval |
+| Cross-encoder reranking |
+| Multimodal RAG |
+| Neo4j knowledge graph |
+| Agentic evidence verification |
+| Redis caching |
+| Asynchronous document processing |
+| Background workers |
+| Observability |
+| Horizontal scaling |
+
+---
+
+## 📈 Scalability
 
 The long-term architecture is designed with large-scale usage in mind.
 
@@ -155,8 +185,11 @@ Planned scalability mechanisms include:
 - Stateless API services
 - Horizontal scaling
 
-The 1M+ user target is a future scalability objective and will require benchmarking before any capacity claims are made.
-## Development Philosophy
+> The 1M+ user target is a **future scalability objective** and will require benchmarking before any capacity claims are made.
+
+---
+
+## 🧩 Development Philosophy
 
 The project is being developed incrementally.
 
@@ -169,9 +202,10 @@ Each major component will be:
 
 before additional complexity is introduced.
 
-The goal is not to maximize architectural complexity.
+The goal is **not** to maximize architectural complexity. The goal is to build a reliable research system where every major component provides a measurable improvement in capability, retrieval quality, reliability, scalability, or user experience.
 
-The goal is to build a reliable research system where every major component provides a measurable improvement in capability, retrieval quality, reliability, scalability, or user experience.
-## Status
+---
 
-🚧 Active development
+## 🚦 Status
+
+🚧 **Active development**
