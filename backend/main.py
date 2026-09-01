@@ -9,7 +9,7 @@ their own milestones.
 from fastapi import FastAPI
 
 from backend.core.config import get_settings
-
+from backend.api.routes import documents
 settings = get_settings()
 
 app = FastAPI(
@@ -17,7 +17,7 @@ app = FastAPI(
     description="AI-powered research assistant — API backend.",
 )
 
-
+app.include_router(documents.router)
 @app.get("/health")
 def health_check() -> dict[str, str]:
     """Basic liveness check used to verify the backend is running."""
