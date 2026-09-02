@@ -3,10 +3,14 @@ fastapi==0.115.6
 uvicorn[standard]==0.34.0
 pydantic==2.10.4
 pydantic-settings==2.7.0
+python-multipart==0.0.20  # required by FastAPI/Starlette to parse multipart file uploads
 
 # Database layer
 sqlalchemy==2.0.36
 psycopg2-binary==2.9.10
+
+# PDF processing
+pymupdf==1.28.2
 
 # Frontend
 streamlit==1.41.1
