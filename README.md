@@ -1,26 +1,34 @@
 # 🔬 Research Assistant
 
-**An AI-powered research assistant for discovering, organizing, and analyzing academic literature.**
+### AI-Powered Research Intelligence Platform for Academic Literature
 
-![Python](https://img.shields.io/badge/Python-3.12-blue)
-![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688)
-![Streamlit](https://img.shields.io/badge/Frontend-Streamlit-FF4B4B)
-![Status](https://img.shields.io/badge/Status-Active%20Development-yellow)
+An AI-powered research assistant for discovering, organizing, and analyzing academic literature — combining project-based organization, retrieval-augmented generation, and evidence-grounded analysis.
 
 ---
 
-## 📖 Table of Contents
+![Python](https://img.shields.io/badge/PYTHON-3.12-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FASTAPI-BACKEND-009688?style=for-the-badge&logo=fastapi&logoColor=white)
+![Streamlit](https://img.shields.io/badge/STREAMLIT-FRONTEND-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/POSTGRESQL-DATABASE-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)
+![Hugging Face](https://img.shields.io/badge/HUGGING%20FACE-MODELS-FFD21E?style=for-the-badge&logo=huggingface&logoColor=black)
+![FAISS](https://img.shields.io/badge/FAISS-VECTOR%20SEARCH-3776AB?style=for-the-badge)
 
-- [Vision](#-vision)
-- [Core Design Principle](#-core-design-principle)
-- [Project-Based Research](#-project-based-research)
-- [Core RAG Pipeline](#-core-rag-pipeline)
-- [Long-Term Retrieval Architecture](#-long-term-retrieval-architecture)
-- [Evidence Verification](#-evidence-verification)
-- [Planned Architecture](#-planned-architecture)
-- [Scalability](#-scalability)
-- [Development Philosophy](#-development-philosophy)
-- [Status](#-status)
+![Status](https://img.shields.io/badge/STATUS-ACTIVE%20DEVELOPMENT-F59E0B?style=for-the-badge)
+
+---
+
+### 📖 Contents
+
+[Vision](#-vision) ·
+[Core Design Principle](#-core-design-principle) ·
+[Project-Based Research](#-project-based-research) ·
+[Core RAG Pipeline](#-core-rag-pipeline) ·
+[Retrieval Architecture](#-long-term-retrieval-architecture) ·
+[Evidence Verification](#-evidence-verification) ·
+[Architecture & Stack](#-planned-architecture) ·
+[Scalability](#-scalability) ·
+[Development Philosophy](#-development-philosophy) ·
+[Status](#-status)
 
 ---
 
@@ -39,6 +47,8 @@ The system will combine:
 - Knowledge-graph-enhanced retrieval
 - Evidence verification
 - Citation-aware responses
+
+> 🚧 **Note on scope:** Sections below describing the *"initial"* pipeline and stack reflect the near-term build target. Sections marked *"planned," "long-term,"* or *"target"* describe the future architecture and are not yet implemented.
 
 ---
 
@@ -107,7 +117,7 @@ The target retrieval system will combine:
 
 ---
 
-## ✅ Evidence Verification
+## 🤖 Evidence Verification
 
 The long-term system will use specialized agents to improve research reliability.
 
