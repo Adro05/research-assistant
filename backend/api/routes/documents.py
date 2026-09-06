@@ -1,12 +1,13 @@
 """
-Document upload, extraction, chunking, and embedding endpoints.
+Document upload, extraction, chunking, embedding, and indexing endpoints.
 
 Accepts a PDF upload, validates it, and stores it under data/uploads/.
-Also exposes text extraction, chunking, and embedding for an
-already-uploaded document. Route handlers stay thin — validation/storage
-logic lives in upload_service, extraction logic lives in
-extraction_service, chunking logic lives in chunking_service, and
-embedding logic lives in embedding_service.
+Also exposes text extraction, chunking, embedding, and FAISS vector
+indexing for an already-uploaded document. Route handlers stay thin —
+validation/storage logic lives in upload_service, extraction logic lives
+in extraction_service, chunking logic lives in chunking_service,
+embedding logic lives in embedding_service, and FAISS indexing logic
+lives in vector_store_service.
 """
 
 from pathlib import Path
@@ -19,6 +20,7 @@ from backend.schemas.chunking import ChunkingResponse, TextChunkSchema
 from backend.schemas.document import PDFUploadResponse
 from backend.schemas.embedding import ChunkEmbeddingSchema, EmbeddingResponse
 from backend.schemas.extraction import ExtractedPageSchema, PDFExtractionResponse
+from backend.schemas.vector_index import VectorIndexResponse
 from backend.services.chunking_service import chunk_document
 from backend.services.embedding_service import (
     EmbeddingError,
@@ -39,6 +41,13 @@ from backend.services.upload_service import (
     validate_extension,
     validate_not_empty,
     validate_pdf_signature,
+)
+from backend.services.vector_store_service import (
+    EmptyEmbeddingsError,
+    InconsistentDimensionError,
+    VectorStoreError,
+    build_vector_index,
+    save_vector_index,
 )
 
 router = APIRouter(prefix="/documents", tags=["documents"])
@@ -258,4 +267,100 @@ async def embed_document_text(
             )
             for e in embedding_result.embeddings
         ],
+    )
+
+
+def get_vector_stores_dir() -> Path:
+    """
+    FastAPI dependency resolving the vector store artifact directory.
+
+    Exposed as a dependency (rather than read directly inside the route)
+    so tests can override it to point at temporary storage instead of the
+    real data/vector_stores/ directory.
+    """
+    return Path(get_settings().vector_stores_dir)
+
+
+@router.post(
+    "/{document_id}/index",
+    response_model=VectorIndexResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def index_document(
+    document_id: str,
+    uploads_dir: Path = Depends(get_uploads_dir),
+    vector_stores_dir: Path = Depends(get_vector_stores_dir),
+    embedding_model: Any = Depends(get_embedding_model_instance),
+) -> VectorIndexResponse:
+    """
+    Extract, chunk, embed, and build a FAISS vector index for an
+    already-uploaded, stored PDF, persisting the index under
+    data/vector_stores/.
+
+    There is no persisted embeddings store to index "already-generated"
+    embeddings from (Milestone 2.4 computes embeddings on demand and
+    returns them directly, without storing them) — so, consistent with
+    every prior stage in this pipeline, this endpoint reruns extraction
+    and chunking and embedding itself before indexing. The FAISS index
+    and its metadata sidecar are the first artifacts in this pipeline
+    that are actually persisted to disk.
+    """
+    try:
+        extraction_result = extract_pdf_text(document_id, uploads_dir)
+    except InvalidDocumentIdError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except DocumentNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except PDFExtractionError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+    except OSError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to process the stored document.",
+        ) from exc
+
+    chunking_result = chunk_document(extraction_result)
+
+    try:
+        embedding_result = embed_chunking_result(chunking_result, model=embedding_model)
+    except EmbeddingModelUnavailableError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="The embedding model is currently unavailable.",
+        ) from exc
+    except EmbeddingError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to generate embeddings for the document.",
+        ) from exc
+
+    try:
+        index, index_result = build_vector_index(embedding_result)
+    except EmptyEmbeddingsError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="The document produced no chunks to index.",
+        ) from exc
+    except InconsistentDimensionError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to build the vector index for the document.",
+        ) from exc
+
+    try:
+        paths = save_vector_index(index, index_result, vector_stores_dir)
+    except VectorStoreError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to save the vector index for the document.",
+        ) from exc
+
+    return VectorIndexResponse(
+        document_id=index_result.document_id,
+        index_type=index_result.index_type,
+        similarity_metric=index_result.similarity_metric,
+        embedding_dimension=index_result.embedding_dimension,
+        total_vectors=index_result.total_vectors,
+        index_filename=paths.index_filename,
+        metadata_filename=paths.metadata_filename,
     )

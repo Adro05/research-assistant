@@ -12,6 +12,13 @@ psycopg2-binary==2.9.10
 # PDF processing
 pymupdf==1.28.2
 
+# Embeddings (Hugging Face / Sentence Transformers)
+sentence-transformers==6.0.1
+
+# Vector indexing (FAISS)
+faiss-cpu==1.15.0
+numpy==2.4.4
+
 # Frontend
 streamlit==1.41.1
 
