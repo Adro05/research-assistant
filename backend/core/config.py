@@ -38,6 +38,10 @@ class Settings(BaseSettings):
     processed_dir: str = "data/processed"
     vector_stores_dir: str = "data/vector_stores"
 
+    # Embedding settings (Hugging Face / Sentence Transformers, per ARCHITECTURE.md §16)
+    embedding_model_name: str = "sentence-transformers/all-MiniLM-L6-v2"
+    embedding_batch_size: int = 32
+
 
 @lru_cache
 def get_settings() -> Settings:
