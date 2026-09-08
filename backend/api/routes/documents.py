@@ -1,13 +1,15 @@
 """
-Document upload, extraction, chunking, embedding, and indexing endpoints.
+Document upload, extraction, chunking, embedding, indexing, and
+retrieval endpoints.
 
 Accepts a PDF upload, validates it, and stores it under data/uploads/.
-Also exposes text extraction, chunking, embedding, and FAISS vector
-indexing for an already-uploaded document. Route handlers stay thin —
-validation/storage logic lives in upload_service, extraction logic lives
-in extraction_service, chunking logic lives in chunking_service,
-embedding logic lives in embedding_service, and FAISS indexing logic
-lives in vector_store_service.
+Also exposes text extraction, chunking, embedding, FAISS vector indexing,
+and retrieval for an already-uploaded document. Route handlers stay
+thin — validation/storage logic lives in upload_service, extraction
+logic lives in extraction_service, chunking logic lives in
+chunking_service, embedding logic lives in embedding_service, FAISS
+indexing logic lives in vector_store_service, and retrieval logic lives
+in retrieval_service.
 """
 
 from pathlib import Path
@@ -20,10 +22,12 @@ from backend.schemas.chunking import ChunkingResponse, TextChunkSchema
 from backend.schemas.document import PDFUploadResponse
 from backend.schemas.embedding import ChunkEmbeddingSchema, EmbeddingResponse
 from backend.schemas.extraction import ExtractedPageSchema, PDFExtractionResponse
+from backend.schemas.retrieval import RetrievalRequest, RetrievalResponse, RetrievedChunkSchema
 from backend.schemas.vector_index import VectorIndexResponse
 from backend.services.chunking_service import chunk_document
 from backend.services.embedding_service import (
     EmbeddingError,
+    EmbeddingGenerationError,
     EmbeddingModelUnavailableError,
     embed_chunking_result,
     get_embedding_model,
@@ -33,6 +37,13 @@ from backend.services.extraction_service import (
     InvalidDocumentIdError,
     PDFExtractionError,
     extract_pdf_text,
+)
+from backend.services.retrieval_service import (
+    EmbeddingDimensionMismatchError,
+    EmbeddingModelMismatchError,
+    EmptyQueryError,
+    InvalidTopKError,
+    retrieve,
 )
 from backend.services.upload_service import (
     UploadValidationError,
@@ -45,6 +56,9 @@ from backend.services.upload_service import (
 from backend.services.vector_store_service import (
     EmptyEmbeddingsError,
     InconsistentDimensionError,
+    InvalidIndexIdentifierError,
+    VectorIndexNotFoundError,
+    VectorStoreCorruptionError,
     VectorStoreError,
     build_vector_index,
     save_vector_index,
@@ -363,4 +377,72 @@ async def index_document(
         total_vectors=index_result.total_vectors,
         index_filename=paths.index_filename,
         metadata_filename=paths.metadata_filename,
+    )
+
+
+@router.post(
+    "/{document_id}/retrieve",
+    response_model=RetrievalResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def retrieve_document_chunks(
+    document_id: str,
+    request: RetrievalRequest,
+    vector_stores_dir: Path = Depends(get_vector_stores_dir),
+    embedding_model: Any = Depends(get_embedding_model_instance),
+) -> RetrievalResponse:
+    """
+    Embed a query with the configured embedding model and retrieve the
+    top-k most similar chunks from an already-indexed document's
+    persisted FAISS index.
+
+    Does not rebuild extraction/chunking/embedding/indexing — this reads
+    only the artifacts already persisted by POST /{document_id}/index.
+    """
+    settings = get_settings()
+
+    try:
+        result = retrieve(
+            document_id=document_id,
+            query=request.query,
+            top_k=request.top_k,
+            vector_stores_dir=vector_stores_dir,
+            model=embedding_model,
+            model_name=settings.embedding_model_name,
+        )
+    except InvalidIndexIdentifierError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except EmptyQueryError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except InvalidTopKError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except VectorIndexNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except VectorStoreCorruptionError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+    except (EmbeddingModelMismatchError, EmbeddingDimensionMismatchError) as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+    except EmbeddingGenerationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to generate an embedding for the query.",
+        ) from exc
+
+    return RetrievalResponse(
+        document_id=result.document_id,
+        query=result.query,
+        total_results=result.total_results,
+        results=[
+            RetrievedChunkSchema(
+                rank=r.rank,
+                score=r.score,
+                document_id=r.document_id,
+                page_number=r.page_number,
+                chunk_index=r.chunk_index,
+                chunk_index_in_page=r.chunk_index_in_page,
+                text=r.text,
+                model_name=r.model_name,
+            )
+            for r in result.results
+        ],
     )

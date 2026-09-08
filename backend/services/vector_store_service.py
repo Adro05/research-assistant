@@ -151,8 +151,17 @@ def _validate_document_id(document_id: str) -> None:
         raise InvalidIndexIdentifierError("Invalid document identifier format.")
 
 
-def _normalize_rows(vectors: np.ndarray) -> np.ndarray:
-    """L2-normalize each row of `vectors` in place, leaving zero vectors as zero (no division by zero)."""
+def normalize_vectors(vectors: np.ndarray) -> np.ndarray:
+    """
+    L2-normalize each row of `vectors` in place, leaving zero vectors as
+    zero (no division by zero).
+
+    Public (not prefixed with `_`) so callers outside this module — in
+    particular the retrieval service — can normalize a query vector the
+    exact same way indexed vectors were normalized, without duplicating
+    this logic. This is the only production-code change made to support
+    Milestone 2.6's retrieval layer; the behavior itself is unchanged.
+    """
     faiss.normalize_L2(vectors)
     return vectors
 
@@ -199,7 +208,7 @@ def build_vector_index(embedding_result: EmbeddingResult) -> tuple[faiss.Index, 
         )
 
     vectors = np.array([e.embedding for e in embedding_result.embeddings], dtype="float32")
-    _normalize_rows(vectors)
+    normalize_vectors(vectors)
 
     index = faiss.IndexFlatIP(dimension)
     index.add(vectors)
