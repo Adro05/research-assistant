@@ -1,15 +1,16 @@
 """
-Document upload, extraction, chunking, embedding, indexing, and
-retrieval endpoints.
+Document upload, extraction, chunking, embedding, indexing, retrieval,
+and generation endpoints.
 
 Accepts a PDF upload, validates it, and stores it under data/uploads/.
 Also exposes text extraction, chunking, embedding, FAISS vector indexing,
-and retrieval for an already-uploaded document. Route handlers stay
-thin — validation/storage logic lives in upload_service, extraction
-logic lives in extraction_service, chunking logic lives in
-chunking_service, embedding logic lives in embedding_service, FAISS
-indexing logic lives in vector_store_service, and retrieval logic lives
-in retrieval_service.
+retrieval, and evidence-grounded answer generation for an
+already-uploaded document. Route handlers stay thin — validation/storage
+logic lives in upload_service, extraction logic lives in
+extraction_service, chunking logic lives in chunking_service, embedding
+logic lives in embedding_service, FAISS indexing logic lives in
+vector_store_service, retrieval logic lives in retrieval_service, and
+generation logic lives in generation_service.
 """
 
 from pathlib import Path
@@ -22,6 +23,7 @@ from backend.schemas.chunking import ChunkingResponse, TextChunkSchema
 from backend.schemas.document import PDFUploadResponse
 from backend.schemas.embedding import ChunkEmbeddingSchema, EmbeddingResponse
 from backend.schemas.extraction import ExtractedPageSchema, PDFExtractionResponse
+from backend.schemas.generation import GenerationRequest, GenerationResponse
 from backend.schemas.retrieval import RetrievalRequest, RetrievalResponse, RetrievedChunkSchema
 from backend.schemas.vector_index import VectorIndexResponse
 from backend.services.chunking_service import chunk_document
@@ -37,6 +39,14 @@ from backend.services.extraction_service import (
     InvalidDocumentIdError,
     PDFExtractionError,
     extract_pdf_text,
+)
+from backend.services.generation_service import (
+    EvidenceContextTooLargeError,
+    GenerationFailedError,
+    GenerationModelUnavailableError,
+    NoEvidenceError,
+    generate_answer,
+    get_generation_model,
 )
 from backend.services.retrieval_service import (
     EmbeddingDimensionMismatchError,
@@ -444,5 +454,110 @@ async def retrieve_document_chunks(
                 model_name=r.model_name,
             )
             for r in result.results
+        ],
+    )
+
+
+def get_generation_model_instance() -> Any:
+    """
+    FastAPI dependency resolving the generation model instance.
+
+    Mirrors get_embedding_model_instance(): FastAPI resolves dependencies
+    before entering the route body, so GenerationModelUnavailableError is
+    caught and converted to HTTPException(503) right here, at the point
+    of failure, rather than relying on the route to catch it.
+    """
+    settings = get_settings()
+    try:
+        return get_generation_model(settings.generation_model_name)
+    except GenerationModelUnavailableError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="The generation model is currently unavailable.",
+        ) from exc
+
+
+@router.post(
+    "/{document_id}/generate",
+    response_model=GenerationResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def generate_document_answer(
+    document_id: str,
+    request: GenerationRequest,
+    vector_stores_dir: Path = Depends(get_vector_stores_dir),
+    embedding_model: Any = Depends(get_embedding_model_instance),
+    generation_model: Any = Depends(get_generation_model_instance),
+) -> GenerationResponse:
+    """
+    Retrieve the top-k most relevant chunks for a query (via the existing
+    Milestone 2.6 retrieval flow) and generate an evidence-grounded
+    answer from them using the configured Hugging Face generation model.
+
+    Does not duplicate FAISS search or query-embedding logic — retrieval
+    is performed by calling retrieval_service.retrieve() directly, and
+    only its results are passed into generation_service.generate_answer().
+    Does not implement citation mapping; that is a later milestone.
+    """
+    settings = get_settings()
+
+    try:
+        retrieval_result = retrieve(
+            document_id=document_id,
+            query=request.query,
+            top_k=request.top_k,
+            vector_stores_dir=vector_stores_dir,
+            model=embedding_model,
+            model_name=settings.embedding_model_name,
+        )
+    except InvalidIndexIdentifierError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except EmptyQueryError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except InvalidTopKError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except VectorIndexNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except VectorStoreCorruptionError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+    except (EmbeddingModelMismatchError, EmbeddingDimensionMismatchError) as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+    except EmbeddingGenerationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to generate an embedding for the query.",
+        ) from exc
+
+    try:
+        generated = generate_answer(
+            query=retrieval_result.query,
+            evidence=retrieval_result.results,
+            model=generation_model,
+            document_id=retrieval_result.document_id,
+        )
+    except (NoEvidenceError, EvidenceContextTooLargeError) as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
+    except GenerationFailedError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to generate an answer for the query.",
+        ) from exc
+
+    return GenerationResponse(
+        document_id=generated.document_id,
+        query=generated.query,
+        answer=generated.answer,
+        evidence=[
+            RetrievedChunkSchema(
+                rank=r.rank,
+                score=r.score,
+                document_id=r.document_id,
+                page_number=r.page_number,
+                chunk_index=r.chunk_index,
+                chunk_index_in_page=r.chunk_index_in_page,
+                text=r.text,
+                model_name=r.model_name,
+            )
+            for r in generated.evidence
         ],
     )

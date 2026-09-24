@@ -42,6 +42,10 @@ class Settings(BaseSettings):
     embedding_model_name: str = "sentence-transformers/all-MiniLM-L6-v2"
     embedding_batch_size: int = 32
 
+    # Generation settings (Hugging Face, Milestone 2.7)
+    generation_model_name: str = "google/flan-t5-small"
+    generation_max_new_tokens: int = 200
+
 
 @lru_cache
 def get_settings() -> Settings:
